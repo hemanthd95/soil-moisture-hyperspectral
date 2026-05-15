@@ -18,3 +18,4 @@ results/maps/
 __pycache__/
 .ipynb_checkpoints/
 .env
+configs/local_paths.yaml
