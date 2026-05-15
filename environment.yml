@@ -1,0 +1,27 @@
+name: soil-moisture-hyperspectral
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - numpy
+  - scipy
+  - pandas
+  - xarray
+  - dask
+  - zarr
+  - rasterio
+  - rioxarray
+  - geopandas
+  - shapely
+  - pyproj
+  - fiona
+  - gdal
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  - jupyterlab
+  - pytest
+  - pip:
+      - pydantic
+      - typer
