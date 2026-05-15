@@ -10,7 +10,7 @@ import pandas as pd
 GROUNDTRUTH_COLUMNS = {
     "Logger Serial Number": "logger_serial_number",
     "Log ID": "log_id",
-    "Address": "address",
+    "Address": "sensor_id",
     "Command": "command",
     "Soil Moisture": "soil_moisture",
     "Soil Temperature (°C)": "soil_temperature_c",
@@ -54,7 +54,33 @@ def read_groundtruth_csv(path: str | Path, timezone: str = "America/New_York") -
     """Read one raw ground-truth CSV and normalize columns and timestamp."""
     src = Path(path)
     df = pd.read_csv(src)
-    df = df.rename(columns=GROUNDTRUTH_COLUMNS)
+    # Strip whitespace from column names
+    df.columns = df.columns.str.strip()
+    # Prefer SDI_12_Address as the sensor ID if available.
+    # # Keep Address separately to avoid duplicate sensor_id columns.
+    if "SDI_12_Address" in df.columns:
+        df = df.rename(columns={"SDI_12_Address": "sensor_id"})
+    elif "Address" in df.columns:
+        df = df.rename(columns={"Address": "sensor_id"})
+    COLUMN_ALIASES = {
+        "Logger Serial Number": "logger_serial_number",
+        "Log ID": "log_id",
+        "Command": "command",
+        "Soil Moisture": "soil_moisture",
+        "Soil Temperature (°C)": "soil_temperature_c",
+        "Permittivity": "permittivity",
+        "Bulk Conductivity (µS/cm)": "bulk_conductivity_us_cm",
+        "Pore Conductivity (µS/cm)": "pore_conductivity_us_cm",
+        "Timestamp (EST)": "timestamp_est",
+        "Longitude": "longitude",
+        "Latitude": "latitude",
+        "Easting": "easting",
+        "Northing": "northing",
+        }
+    df = df.rename(columns={k: v for k, v in COLUMN_ALIASES.items() if k in df.columns})
+    # Remove any accidental duplicate columns, keeping the first occurrence
+    df = df.loc[:, ~df.columns.duplicated()].copy()
+    #df = df.rename(columns=GROUNDTRUTH_COLUMNS)
 
     required = [
         "sensor_id",
@@ -87,7 +113,16 @@ def read_groundtruth_csv(path: str | Path, timezone: str = "America/New_York") -
         df[c] = pd.to_numeric(df[c], errors="coerce")
 
     ts = pd.to_datetime(df["timestamp_est"], errors="coerce")
-    df["timestamp_est"] = ts.dt.tz_localize(timezone, ambiguous="NaT", nonexistent="NaT")
+    #df["timestamp_est"] = ts.dt.tz_localize(timezone, ambiguous="NaT", nonexistent="NaT")
+    ts = pd.to_datetime(df["timestamp_est"], errors="coerce")
+    if getattr(ts.dt, "tz", None) is None:
+        df["timestamp_est"] = ts.dt.tz_localize(
+        timezone,
+        ambiguous="NaT",
+        nonexistent="NaT"
+    )
+    else:
+        df["timestamp_est"] = ts.dt.tz_convert(timezone)
 
     meta = infer_flight_metadata(src)
     df["flight_id"] = meta["flight_id"]
